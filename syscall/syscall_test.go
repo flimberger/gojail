@@ -30,8 +30,7 @@ import "testing"
 import "os"
 
 func TestSyscallError(t *testing.T) {
-	var jail JailStruct
-	err := Jail(&jail)
+	err := JailAttach(0)
 	if err == nil {
 		t.Errorf("unexpected success")
 	}

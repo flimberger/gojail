@@ -28,68 +28,44 @@ package gojail
 
 import (
 	"fmt"
-	"net"
 	"unsafe"
 
 	"purplekraken.com/pkg/gojail/syscall"
 )
 
-// Opaque wrapper for syscall.JailStruct, so the user doesn't have to bother with
-// the details.
-type Jail struct {
-	Path string
-	Hostname string
-	Jailname string
-	IPs []net.IP
+func Attach(jid int) error {
+	return syscall.JailAttach(jid)
 }
 
-func rawbytes(s string) *byte {
+func Remove(jid int) error {
+	return syscall.JailRemove(jid)
+}
+
+type JailParam struct {
+	Name string
+	Data []byte
+}
+
+func rawbytes(b []byte) *byte {
+	return (*byte)(unsafe.Pointer(&b[0]));
+}
+
+func rawstring(s string) *byte {
 	return (*byte)(unsafe.Pointer(&[]byte(s)[0]));
 }
 
-func NewJail(path, hostname, jailname string, ips []net.IP) (*Jail, error) {
-	if len(path) == 0 || len(hostname) == 0 {
-		return nil, fmt.Errorf("invalid parameter: path or hostname is nil")
+func Create(params []JailParam, flags int) error {
+	iovs []syscall.Iovec
+	for _, param := range params {
+		iov := syscall.Iovec{
+			Base: rawstring(param.Name),
+			Len: uint64(len(param.Name)),
+		};
+		iovs = append(iovs, iov)
+		iov = syscall.Iovec{
+			Base: rawbytes(param.Data),
+			Len: uint64(len(param.Data)),
+		};
 	}
-	return &Jail{
-		Path: path,
-		Hostname: hostname,
-		Jailname: jailname,
-		IPs: ips,
-	}, nil
-}
-
-func (jail *Jail) Call() error {
-	var ip4s []net.IP
-	var ip6s []net.IP
-	for _, ip := range jail.IPs {
-		if ip4 := ip.To4(); ip4 != nil {
-			ip4s = append(ip4s, ip4)
-		} else if ip6 := ip.To16(); ip6 != nil {
-			ip6s = append(ip6s, ip6)
-		} else {
-			panic("invalid IP address")
-		}
-	}
-	nip4s := uint32(len(ip4s))
-	nip6s := uint32(len(ip6s))
-	var rawip4s *[4]byte
-	var rawip6s *[16]byte
-	if nip4s != 0 {
-		rawip4s = (*[4]byte)(unsafe.Pointer(&ip4s[0]))
-	}
-	if nip6s != 0 {
-		rawip6s = (*[16]byte)(unsafe.Pointer(&ip6s[0]))
-	}
-	j := syscall.JailStruct{
-		Version: syscall.JAIL_API_VERSION,
-		Path: rawbytes(jail.Path),
-		Hostname: rawbytes(jail.Hostname),
-		Jailname: rawbytes(jail.Jailname),
-		IP4s: nip4s,
-		IP6s: nip6s,
-		IP4: rawip4s,
-		IP6: rawip6s,
-	}
-	return syscall.Jail(&j)
+	return syscall.JailSet((*syscall.Iovec)(unsafe.Pointer(&iovs[0])), len(iovs), flags)
 }

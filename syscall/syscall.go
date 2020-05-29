@@ -44,19 +44,9 @@ import (
 */
 import "C"
 
-type JailStruct struct {
-	Version uint32
-	Path *byte
-	Hostname *byte
-	Jailname *byte
-	IP4s uint32
-	IP6s uint32
-	IP4 *[4]byte /* in_addr */
-	IP6 *[16]byte /* in6_addr */
-}
+type Iovec unix.Iovec
 
 const (
-	JAIL_API_VERSION = C.JAIL_API_VERSION
 	JAIL_CREATE = C.JAIL_CREATE
 	JAIL_UPDATE = C.JAIL_UPDATE
 	JAIL_ATTACH = C.JAIL_ATTACH
@@ -78,12 +68,6 @@ func asError(name string, err error) error {
 		return err
 	}
 	return nil
-}
-
-func Jail(jail *JailStruct) error {
-	unsafeptr := (*C.struct_jail)(unsafe.Pointer(jail))
-	_, err := C.jail(unsafeptr)
-	return asError("jail", err)
 }
 
 func JailAttach(jid int) error {
