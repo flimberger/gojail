@@ -24,62 +24,19 @@
 // OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
 
-package gojail
+package main
 
-import (
-	"unsafe"
+import "fmt"
+import "os"
+import "./gojail"
 
-	"purplekraken.com/pkg/gojail/syscall"
-)
-
-func Attach(jid int) error {
-	return syscall.JailAttach(jid)
-}
-
-func Remove(jid int) error {
-	return syscall.JailRemove(jid)
-}
-
-type JailParam struct {
-	Name string
-	Data []byte
-}
-
-func NewStringParam(name, value string) JailParam {
-	return JailParam{
-		Name: name,
-		Data: []byte(value),
+func main() {
+	var params []gojail.JailParam
+	params = append(params, gojail.NewStringParam("name", "gotest"))
+	params = append(params, gojail.NewStringParam("host.hostname", "gotest"))
+	err := gojail.JailSet(params, syscall.JAIL_CREATE)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create jail: %s", err)
+		os.Exit(1)
 	}
-}
-
-func NewIntParam(name string, value int) JailParam {
-	buf := make([]byte, 4)
-	hostByteOrder.PutUint32(buf, uint32(value))
-	return JailParam{
-		Name: name,
-		Data: buf,
-	}
-}
-
-func rawbytes(b []byte) *byte {
-	return (*byte)(unsafe.Pointer(&b[0]));
-}
-
-func rawstring(s string) *byte {
-	return (*byte)(unsafe.Pointer(&[]byte(s)[0]));
-}
-
-func JailSet(params []JailParam, flags int) error {
-	var iovs []syscall.Iovec
-	for _, param := range params {
-		iovs = append(iovs, syscall.Iovec{
-			Base: rawstring(param.Name),
-			Len: uint64(len(param.Name)),
-		})
-		iovs = append(iovs, syscall.Iovec{
-			Base: rawbytes(param.Data),
-			Len: uint64(len(param.Data)),
-		})
-	}
-	return syscall.JailSet(iovs, flags)
 }

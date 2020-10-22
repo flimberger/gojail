@@ -80,14 +80,15 @@ func JailRemove(jid int) error {
 	return asError("jail_remove", err)
 }
 
-func JailGet(iov *unix.Iovec, niov uint, flags int) error {
+func JailGet(iov *Iovec, niov uint, flags int) error {
 	unsafeptr := (*C.struct_iovec)(unsafe.Pointer(iov))
 	_, err := C.jail_get(unsafeptr, C.uint(niov), C.int(flags))
 	return asError("jail_get", err)
 }
 
-func JailSet(iov *unix.Iovec, niov uint, flags int) error {
-	unsafeptr := (*C.struct_iovec)(unsafe.Pointer(iov))
+func JailSet(iov []Iovec, flags int) error {
+	niov := uint(len(iov))
+	unsafeptr := (*C.struct_iovec)(unsafe.Pointer(&iov[0]))
 	_, err := C.jail_set(unsafeptr, C.uint(niov), C.int(flags))
 	return asError("jail_set", err)
 }

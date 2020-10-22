@@ -1,12 +1,12 @@
-PKG := purplekraken.com/pkg/gojail
+PKG :=	purplekraken.com/pkg/gojail
 
-GOTOOL := go
+GOTOOL :=	go
 
 all:	build
 .PHONY:	all
 
 build:
-	${GOTOOL} build ${PKG}/syscall
+	${GOTOOL} build cmd
 .PHONY:	build
 
 test:
