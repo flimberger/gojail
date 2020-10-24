@@ -28,10 +28,88 @@ package gojail // import "purplekraken.com/pkg/gojail"
 
 import (
 	"os"
+	"strconv"
 	sys "syscall"
 
 	"purplekraken.com/pkg/gojail/syscall"
 )
+
+const (
+	errmsglen  = 1024
+	maxnamelen = 256 // MAXHOSTNAMELEN on FreeBSD, defined in include/sys/param.h
+)
+
+type ParamType int
+
+const (
+	String ParamType = 0
+	Int    ParamType = 1
+	Raw    ParamType = 2
+)
+
+type JailParam interface {
+	Name() []byte
+	Data() []byte
+	Type() ParamType
+}
+
+type jailParam struct {
+	name  []byte
+	data  []byte
+	ptype ParamType
+}
+
+func (jp jailParam) Name() []byte {
+	return jp.name
+}
+
+func (jp jailParam) Data() []byte {
+	return jp.data
+}
+
+func (jp jailParam) Type() ParamType {
+	return jp.ptype
+}
+
+func NewStringParam(name, value string) JailParam {
+	return jailParam{
+		name:  []byte(name),
+		data:  []byte(value),
+		ptype: String,
+	}
+}
+
+func NewIntParam(name string, value int) JailParam {
+	buf := make([]byte, 4)
+	hostByteOrder.PutUint32(buf, uint32(value))
+	return jailParam{
+		name:  []byte(name),
+		data:  buf,
+		ptype: Int,
+	}
+}
+
+// Error message from the jail subsystem.
+// Represents an error returned as the "errmsg" parameter from JailGet or JailSet.
+type JailErr struct {
+	errmsg string
+}
+
+func (je *JailErr) Error() string {
+	return je.errmsg
+}
+
+func makeJailErr(errmsg []byte) error {
+	return &JailErr{
+		errmsg: string(errmsg),
+	}
+}
+
+func intToBytes(i int) []byte {
+	b := make([]byte, 4)
+	hostByteOrder.PutUint32(b, uint32(i))
+	return b
+}
 
 // Converts errno to an instance of os.SyscallError using errno if retval is
 // not zero.
@@ -45,46 +123,64 @@ func asSyscallError(name string, err error) error {
 	return err
 }
 
+// Returns the JID of the jail identified by name.
+func GetId(name string) (int, error) {
+	var iov [4][]byte
+	if jid, err := strconv.Atoi(name); err == nil {
+		if jid == 0 {
+			return jid, nil
+		}
+		iov[0] = []byte("jid")
+		iov[1] = intToBytes(jid)
+	} else {
+		iov[0] = []byte("name")
+		iov[1] = []byte(name)
+	}
+	iov[2] = []byte("errmsg")
+	iov[3] = make([]byte, errmsglen)
+	jid, err := syscall.JailGet(iov[:], 0)
+	if err != nil {
+		if iov[3][0] != 0 {
+			err = makeJailErr(iov[3])
+		} else {
+			err = asSyscallError("jail_get", err)
+		}
+		return -1, err
+	}
+	return jid, nil
+}
+
+// Returns the name of the jail identified by jid.
+func GetName(jid int) (string, error) {
+	var iov [6][]byte
+	iov[0] = []byte("jid")
+	iov[1] = intToBytes(jid)
+	iov[2] = []byte("name")
+	iov[3] = make([]byte, maxnamelen)
+	iov[4] = []byte("errmsg")
+	iov[5] = make([]byte, errmsglen)
+	jid, err := syscall.JailGet(iov[:], 0)
+	if err != nil {
+		if iov[3][0] != 00 {
+			err = makeJailErr(iov[5])
+		} else {
+			err = asSyscallError("jail_get", err)
+		}
+		return "", err
+	}
+	return string(iov[3]), err
+}
+
+// Attach the current process to the jail identified by jid.
+// See jail_attach(2) for further information.
 func Attach(jid int) error {
 	return asSyscallError("jail_attach", syscall.JailAttach(jid))
 }
 
+// Remove the jail idenified by jid.
+// See jail_remove(2) for further information.
 func Remove(jid int) error {
 	return asSyscallError("jail_remove", syscall.JailRemove(jid))
-}
-
-type JailParam interface {
-	Name() []byte
-	Data() []byte
-}
-
-type jailParam struct {
-	name []byte
-	data []byte
-}
-
-func (jp jailParam) Name() []byte {
-	return jp.name
-}
-
-func (jp jailParam) Data() []byte {
-	return jp.data
-}
-
-func NewStringParam(name, value string) JailParam {
-	return jailParam{
-		name: []byte(name),
-		data: []byte(value),
-	}
-}
-
-func NewIntParam(name string, value int) JailParam {
-	buf := make([]byte, 4)
-	hostByteOrder.PutUint32(buf, uint32(value))
-	return jailParam{
-		name: []byte(name),
-		data: buf,
-	}
 }
 
 func paramsToBytes(ps []JailParam) [][]byte {
@@ -97,13 +193,13 @@ func paramsToBytes(ps []JailParam) [][]byte {
 	return bs
 }
 
-func JailSet(params []JailParam, flags int) (int, error) {
+func SetParams(params []JailParam, flags int) (int, error) {
 	p := paramsToBytes(params)
 	jid, err := syscall.JailSet(p, flags)
 	return jid, asSyscallError("jail_set", err)
 }
 
-func JailGet(params []JailParam, flags int) (int, error) {
+func GetParams(params []JailParam, flags int) (int, error) {
 	p := paramsToBytes(params)
 	jid, err := syscall.JailGet(p, flags)
 	return jid, asSyscallError("jail_get", err)
