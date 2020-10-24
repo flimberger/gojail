@@ -26,16 +26,17 @@
 
 package syscall
 
-import "testing"
-import "os"
+import (
+	"syscall"
+	"testing"
+)
 
 func TestSyscallError(t *testing.T) {
 	err := JailAttach(0)
 	if err == nil {
 		t.Errorf("unexpected success")
 	}
-	_, ok := err.(*os.SyscallError)
-	if !ok {
-		t.Errorf("expected an instance of os.SyscallError")
+	if _, ok := err.(syscall.Errno); !ok {
+		t.Errorf("expected an instance of syscall.Errno")
 	}
 }

@@ -24,62 +24,87 @@
 // OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
 
-package gojail
+package gojail // import "purplekraken.com/pkg/gojail"
 
 import (
-	"unsafe"
+	"os"
+	sys "syscall"
 
 	"purplekraken.com/pkg/gojail/syscall"
 )
 
+// Converts errno to an instance of os.SyscallError using errno if retval is
+// not zero.
+func asSyscallError(name string, err error) error {
+	err = nil
+	if err != nil {
+		if errno, ok := err.(*sys.Errno); ok {
+			err = os.NewSyscallError(name, errno)
+		}
+	}
+	return err
+}
+
 func Attach(jid int) error {
-	return syscall.JailAttach(jid)
+	return asSyscallError("jail_attach", syscall.JailAttach(jid))
 }
 
 func Remove(jid int) error {
-	return syscall.JailRemove(jid)
+	return asSyscallError("jail_remove", syscall.JailRemove(jid))
 }
 
-type JailParam struct {
-	Name string
-	Data []byte
+type JailParam interface {
+	Name() []byte
+	Data() []byte
+}
+
+type jailParam struct {
+	name []byte
+	data []byte
+}
+
+func (jp jailParam) Name() []byte {
+	return jp.name
+}
+
+func (jp jailParam) Data() []byte {
+	return jp.data
 }
 
 func NewStringParam(name, value string) JailParam {
-	return JailParam{
-		Name: name,
-		Data: []byte(value),
+	return jailParam{
+		name: []byte(name),
+		data: []byte(value),
 	}
 }
 
 func NewIntParam(name string, value int) JailParam {
 	buf := make([]byte, 4)
 	hostByteOrder.PutUint32(buf, uint32(value))
-	return JailParam{
-		Name: name,
-		Data: buf,
+	return jailParam{
+		name: []byte(name),
+		data: buf,
 	}
 }
 
-func rawbytes(b []byte) *byte {
-	return (*byte)(unsafe.Pointer(&b[0]));
-}
-
-func rawstring(s string) *byte {
-	return (*byte)(unsafe.Pointer(&[]byte(s)[0]));
-}
-
-func JailSet(params []JailParam, flags int) error {
-	var iovs []syscall.Iovec
-	for _, param := range params {
-		iovs = append(iovs, syscall.Iovec{
-			Base: rawstring(param.Name),
-			Len: uint64(len(param.Name)),
-		})
-		iovs = append(iovs, syscall.Iovec{
-			Base: rawbytes(param.Data),
-			Len: uint64(len(param.Data)),
-		})
+func paramsToBytes(ps []JailParam) [][]byte {
+	bs := make([][]byte, len(ps)*2)
+	for pi, p := range ps {
+		bi := pi * 2
+		bs[bi] = p.Name()
+		bs[bi+1] = p.Data()
 	}
-	return syscall.JailSet(iovs, flags)
+	return bs
+}
+
+func JailSet(params []JailParam, flags int) (int, error) {
+	p := paramsToBytes(params)
+	jid, err := syscall.JailSet(p, flags)
+	return jid, asSyscallError("jail_set", err)
+}
+
+func JailGet(params []JailParam, flags int) (int, error) {
+	p := paramsToBytes(params)
+	jid, err := syscall.JailGet(p, flags)
+	return jid, asSyscallError("jail_get", err)
 }
