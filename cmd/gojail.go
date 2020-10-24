@@ -26,17 +26,28 @@
 
 package main
 
-import "fmt"
-import "os"
-import "./gojail"
+import (
+	"fmt"
+	"os"
+
+	"purplekraken.com/pkg/gojail"
+)
 
 func main() {
-	var params []gojail.JailParam
-	params = append(params, gojail.NewStringParam("name", "gotest"))
-	params = append(params, gojail.NewStringParam("host.hostname", "gotest"))
-	err := gojail.JailSet(params, syscall.JAIL_CREATE)
+	if len(os.Args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: gojail name")
+		os.Exit(2)
+	}
+	jid, err := gojail.GetId(os.Args[1])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create jail: %s", err)
+		if je, ok := err.(*gojail.JailErr); ok {
+			fmt.Fprintln(os.Stderr, "gojail: errmsg:", je)
+		} else if sce, ok := err.(*os.SyscallError); ok {
+			fmt.Fprintln(os.Stderr, "gojail: syscall:", sce)
+		} else {
+			fmt.Fprintln(os.Stderr, "gojail:", err)
+		}
 		os.Exit(1)
 	}
+	fmt.Println(jid)
 }
