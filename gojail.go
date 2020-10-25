@@ -31,6 +31,7 @@ import (
 	"strconv"
 	sys "syscall"
 
+	"golang.org/x/sys/unix"
 	"purplekraken.com/pkg/gojail/syscall"
 )
 
@@ -71,22 +72,34 @@ func (jp jailParam) Type() ParamType {
 	return jp.ptype
 }
 
-func NewStringParam(name, value string) JailParam {
-	return jailParam{
-		name:  []byte(name),
-		data:  []byte(value),
-		ptype: String,
+func NewStringParam(name, value string) (JailParam, error) {
+	nameb, err := unix.ByteSliceFromString(name)
+	if err != nil {
+		return nil, err
 	}
+	valueb, err := unix.ByteSliceFromString(value)
+	if err != nil {
+		return nil, err
+	}
+	return jailParam{
+		name:  nameb,
+		data:  valueb,
+		ptype: String,
+	}, nil
 }
 
-func NewIntParam(name string, value int) JailParam {
+func NewIntParam(name string, value int) (JailParam, error) {
+	nameb, err := unix.ByteSliceFromString(name)
+	if err != nil {
+		return nil, err
+	}
 	buf := make([]byte, 4)
 	hostByteOrder.PutUint32(buf, uint32(value))
 	return jailParam{
-		name:  []byte(name),
+		name:  nameb,
 		data:  buf,
 		ptype: Int,
-	}
+	}, nil
 }
 
 // Error message from the jail subsystem.
@@ -129,13 +142,16 @@ func GetId(name string) (int, error) {
 		if jid == 0 {
 			return jid, nil
 		}
-		iov[0] = []byte("jid")
+		iov[0], _ = unix.ByteSliceFromString("jid")
 		iov[1] = intToBytes(jid)
 	} else {
-		iov[0] = []byte("name")
-		iov[1] = []byte(name)
+		iov[0], _ = unix.ByteSliceFromString("name")
+		iov[1], err = unix.ByteSliceFromString(name)
+		if err != nil {
+			return -1, err
+		}
 	}
-	iov[2] = []byte("errmsg")
+	iov[2], _ = unix.ByteSliceFromString("errmsg")
 	iov[3] = make([]byte, errmsglen)
 	jid, err := syscall.JailGet(iov[:], 0)
 	if err != nil {
@@ -149,11 +165,11 @@ func GetId(name string) (int, error) {
 // Returns the name of the jail identified by jid.
 func GetName(jid int) (string, error) {
 	var iov [6][]byte
-	iov[0] = []byte("jid")
+	iov[0], _ = unix.ByteSliceFromString("jid")
 	iov[1] = intToBytes(jid)
-	iov[2] = []byte("name")
+	iov[2], _ = unix.ByteSliceFromString("name")
 	iov[3] = make([]byte, maxnamelen)
-	iov[4] = []byte("errmsg")
+	iov[4], _ = unix.ByteSliceFromString("errmsg")
 	iov[5] = make([]byte, errmsglen)
 	jid, err := syscall.JailGet(iov[:], 0)
 	if err != nil {
