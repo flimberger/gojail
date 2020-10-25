@@ -114,7 +114,6 @@ func intToBytes(i int) []byte {
 // Converts errno to an instance of os.SyscallError using errno if retval is
 // not zero.
 func asSyscallError(name string, err error) error {
-	err = nil
 	if err != nil {
 		if errno, ok := err.(*sys.Errno); ok {
 			err = os.NewSyscallError(name, errno)
@@ -140,14 +139,11 @@ func GetId(name string) (int, error) {
 	iov[3] = make([]byte, errmsglen)
 	jid, err := syscall.JailGet(iov[:], 0)
 	if err != nil {
-		if iov[3][0] != 0 {
-			err = makeJailErr(iov[3])
-		} else {
-			err = asSyscallError("jail_get", err)
-		}
-		return -1, err
+		err = asSyscallError("jail_get", err)
+	} else if jid == -1 && iov[3][0] != 0 {
+		err = makeJailErr(iov[3])
 	}
-	return jid, nil
+	return jid, err
 }
 
 // Returns the name of the jail identified by jid.
@@ -161,12 +157,9 @@ func GetName(jid int) (string, error) {
 	iov[5] = make([]byte, errmsglen)
 	jid, err := syscall.JailGet(iov[:], 0)
 	if err != nil {
-		if iov[3][0] != 00 {
-			err = makeJailErr(iov[5])
-		} else {
-			err = asSyscallError("jail_get", err)
-		}
-		return "", err
+		err = asSyscallError("jail_get", err)
+	} else if jid == -1 && iov[5][0] != 00 {
+		err = makeJailErr(iov[5])
 	}
 	return string(iov[3]), err
 }
