@@ -118,6 +118,14 @@ func makeJailErr(errmsg []byte) error {
 	}
 }
 
+func byteSliceFromStringOrDie(s string) []byte {
+	b, err := unix.ByteSliceFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
 func intToBytes(i int) []byte {
 	b := make([]byte, 4)
 	hostByteOrder.PutUint32(b, uint32(i))
@@ -142,16 +150,16 @@ func GetId(name string) (int, error) {
 		if jid == 0 {
 			return jid, nil
 		}
-		iov[0], _ = unix.ByteSliceFromString("jid")
+		iov[0] = byteSliceFromStringOrDie("jid")
 		iov[1] = intToBytes(jid)
 	} else {
-		iov[0], _ = unix.ByteSliceFromString("name")
+		iov[0] = byteSliceFromStringOrDie("name")
 		iov[1], err = unix.ByteSliceFromString(name)
 		if err != nil {
 			return -1, err
 		}
 	}
-	iov[2], _ = unix.ByteSliceFromString("errmsg")
+	iov[2] = byteSliceFromStringOrDie("errmsg")
 	iov[3] = make([]byte, errmsglen)
 	jid, err := syscall.JailGet(iov[:], 0)
 	if err != nil {
@@ -165,11 +173,11 @@ func GetId(name string) (int, error) {
 // Returns the name of the jail identified by jid.
 func GetName(jid int) (string, error) {
 	var iov [6][]byte
-	iov[0], _ = unix.ByteSliceFromString("jid")
+	iov[0] = byteSliceFromStringOrDie("jid")
 	iov[1] = intToBytes(jid)
-	iov[2], _ = unix.ByteSliceFromString("name")
+	iov[2] = byteSliceFromStringOrDie("name")
 	iov[3] = make([]byte, maxnamelen)
-	iov[4], _ = unix.ByteSliceFromString("errmsg")
+	iov[4] = byteSliceFromStringOrDie("errmsg")
 	iov[5] = make([]byte, errmsglen)
 	jid, err := syscall.JailGet(iov[:], 0)
 	if err != nil {
