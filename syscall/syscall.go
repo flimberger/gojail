@@ -152,5 +152,5 @@ func JailGet(params [][]byte, flags int) (int, error) {
 }
 
 func JailSet(params [][]byte, flags int) (int, error) {
-	return syscall2(unix.SYS_JAIL_GET, params, flags)
+	return syscall2(unix.SYS_JAIL_SET, params, flags)
 }
