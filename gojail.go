@@ -27,6 +27,8 @@
 package gojail // import "purplekraken.com/pkg/gojail"
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"strconv"
 	sys "syscall"
@@ -95,6 +97,47 @@ func NewIntParam(name string, value int) (JailParam, error) {
 	}
 	buf := make([]byte, 4)
 	hostByteOrder.PutUint32(buf, uint32(value))
+	return jailParam{
+		name:  nameb,
+		data:  buf,
+		ptype: Int,
+	}, nil
+}
+
+// TODO: The IP must be added to some interface
+// otherwise is just an IP :)
+// inet 192.168.0.222 netmask 0xffffffff broadcast 192.168.0.222
+func NewIPParam(value string) (JailParam, error) {
+	var nameb []byte
+	var err error
+	ip := net.ParseIP(value)
+	if ip == nil {
+		return nil, fmt.Errorf("Invalid IP address provided")
+	}
+
+	buf := make([]byte, 4)
+	if ip4 := ip.To4(); ip4 != nil {
+		nameb, err = unix.ByteSliceFromString("ip4.addr")
+		if err != nil {
+			return nil, err
+		}
+		ip4uint := hostByteOrder.Uint32(ip.To4())
+		hostByteOrder.PutUint32(buf, ip4uint)
+	} else {
+		return nil, fmt.Errorf("IPv6 not supported yet")
+		/*
+			nameb, err = unix.ByteSliceFromString("ip6.addr")
+			if err != nil {
+				return nil, err
+			}
+			ipv6Int := big.NewInt(0)
+			ipv6Int.SetBytes(ip.To16())
+			ip6uint := binary.BigEndian.Uint64(ipv6Int.Bytes())
+			binary.BigEndian.PutUint64(buf, ip6uint)
+		*/
+
+	}
+
 	return jailParam{
 		name:  nameb,
 		data:  buf,
