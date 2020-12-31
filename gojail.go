@@ -136,7 +136,7 @@ func intToBytes(i int) []byte {
 // not zero.
 func asSyscallError(name string, err error) error {
 	if err != nil {
-		if errno, ok := err.(*sys.Errno); ok {
+		if errno, ok := err.(sys.Errno); ok {
 			err = os.NewSyscallError(name, errno)
 		}
 	}
