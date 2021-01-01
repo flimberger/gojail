@@ -1,0 +1,15 @@
+name: check
+on: [push, pull_request]
+jobs:
+  check:
+    name: Check the source formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.15
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Check formatting
+        run: gofmt -l *.go **/*.go
