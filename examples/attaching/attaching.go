@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 //
-// Copyright (c) 2020 Florian Limberger <flo@purplekraken.com>
+// Copyright (c) 2020 Ricardo Pchevuzinske Katz <ricardo.katz@gmail.com>
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
