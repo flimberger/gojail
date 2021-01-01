@@ -1,20 +1,16 @@
-PKG :=	purplekraken.com/pkg/gojail
-CMD :=	gojail
-
 GOTOOL :=	go
 
-all:	gojail
+all:	build
 .PHONY:	all
 
-gojail:
-	${GOTOOL} build -o ${CMD} ${PKG}/cmd
-.PHONY:	gojail
+build:
+	${GOTOOL} build -v ./...
+.PHONY:	build
 
 test:
-	${GOTOOL} test ${PKG}/syscall
+	${GOTOOL} test ./...
 .PHONY:	test
 
 clean:
-	${GOTOOL} clean ${PKG}
-	rm -f ${CMD}
+	${GOTOOL} clean -x ./...
 .PHONY: clean
