@@ -32,7 +32,6 @@ import (
 	"strconv"
 
 	"purplekraken.com/pkg/gojail"
-	"purplekraken.com/pkg/gojail/syscall"
 )
 
 func main() {
@@ -71,7 +70,7 @@ func main() {
 	}
 	params = append(params, ip4)
 
-	jid, err := gojail.SetParams(params, syscall.JAIL_UPDATE)
+	jid, err := gojail.SetParams(params, gojail.UpdateFlag)
 
 	if err != nil {
 		if je, ok := err.(*gojail.JailErr); ok {

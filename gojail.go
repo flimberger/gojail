@@ -42,6 +42,15 @@ const (
 	maxnamelen = 256 // MAXHOSTNAMELEN on FreeBSD, defined in include/sys/param.h
 )
 
+type Flags int
+
+const (
+	CreateFlag     Flags = syscall.JAIL_CREATE
+	UpdateFlag     Flags = syscall.JAIL_UPDATE
+	AttachFlag     Flags = syscall.JAIL_ATTACH
+	AllowDyingFlag Flags = syscall.JAIL_DYING
+)
+
 type ParamType int
 
 const (
@@ -253,14 +262,14 @@ func paramsToBytes(ps []JailParam) [][]byte {
 	return bs
 }
 
-func SetParams(params []JailParam, flags int) (int, error) {
+func SetParams(params []JailParam, flags Flags) (int, error) {
 	p := paramsToBytes(params)
-	jid, err := syscall.JailSet(p, flags)
+	jid, err := syscall.JailSet(p, int(flags))
 	return jid, asSyscallError("jail_set", err)
 }
 
-func GetParams(params []JailParam, flags int) (int, error) {
+func GetParams(params []JailParam, flags Flags) (int, error) {
 	p := paramsToBytes(params)
-	jid, err := syscall.JailGet(p, flags)
+	jid, err := syscall.JailGet(p, int(flags))
 	return jid, asSyscallError("jail_get", err)
 }
