@@ -117,33 +117,25 @@ func NewIntParam(name string, value int) (JailParam, error) {
 // otherwise is just an IP :)
 // inet 192.168.0.222 netmask 0xffffffff broadcast 192.168.0.222
 func NewIPParam(value string) (JailParam, error) {
-	var nameb []byte
 	ip := net.ParseIP(value)
 	if ip == nil {
 		return nil, fmt.Errorf("Invalid IP address provided")
 	}
 
-	buf := make([]byte, 4)
+	var nameb []byte
+	var buf	[]byte
 	if ip4 := ip.To4(); ip4 != nil {
 		nameb = byteSliceFromStringOrDie("ip4.addr")
-		ip4uint := hostByteOrder.Uint32(ip.To4())
-		hostByteOrder.PutUint32(buf, ip4uint)
+		buf = ip4
 	} else {
-		return nil, fmt.Errorf("IPv6 not supported yet")
-		/*
-			nameb = byteSliceFromStringOrDie("ip6.addr")
-			ipv6Int := big.NewInt(0)
-			ipv6Int.SetBytes(ip.To16())
-			ip6uint := binary.BigEndian.Uint64(ipv6Int.Bytes())
-			binary.BigEndian.PutUint64(buf, ip6uint)
-		*/
-
+		nameb = byteSliceFromStringOrDie("ip6.addr")
+		buf = ip
 	}
 
 	return jailParam{
 		name:  nameb,
 		data:  buf,
-		ptype: Int,
+		ptype: Raw,
 	}, nil
 }
 
