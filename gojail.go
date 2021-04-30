@@ -149,6 +149,9 @@ func (je *JailErr) Error() string {
 	return je.errmsg
 }
 
+// Error returned by GetId and GetName if the specified jail does not exist.
+var NoJail error = &JailErr{ errmsg: "No such jail" }
+
 func makeJailErr(errmsg []byte) error {
 	return &JailErr{
 		errmsg: string(errmsg),
@@ -180,7 +183,7 @@ func asSyscallError(name string, err error) error {
 	return err
 }
 
-// Returns the JID of the jail identified by name.
+// Returns the JID of the jail identified by name, -1 if it doesn't exist.
 func GetId(name string) (int, error) {
 	var iov [4][]byte
 	if jid, err := strconv.Atoi(name); err == nil {
@@ -200,7 +203,27 @@ func GetId(name string) (int, error) {
 	iov[3] = make([]byte, errmsglen)
 	jid, err := syscall.JailGet(iov[:], 0)
 	if err != nil {
-		err = asSyscallError("jail_get", err)
+		// The jail does not exist, but that is not really an error.
+		// Checking the kind of error is tedious for the users, so
+		// differentiate here.
+		// Attention: jail_get(2) returns ENOENT on three occasions:
+		// 1. The jail referred to by a jid or name parameter does
+		//    not exist.
+		// 2. The jail referred to by a jid is not accessible by the
+		//    process, because the process is in a different jail.
+		// 3. The lastjid parameter is greater than the highest
+		//    current jail ID.
+		// We don't care for the second case, because the situation
+		// is equivalent to the first case, for processes in a jail
+		// other jails do not exist, but we need to be careful with
+		// the third case.
+		// In this function, there is no "lastjid" parameter, so
+		// everything is fine, but this is not the general case.
+		if syserr, ok := err.(sys.Errno); ok && syserr == sys.ENOENT {
+			err = NoJail
+		} else {
+			err = asSyscallError("jail_get", err)
+		}
 	} else if jid == -1 && iov[3][0] != 0 {
 		err = makeJailErr(iov[3])
 	}
@@ -218,7 +241,11 @@ func GetName(jid int) (string, error) {
 	iov[5] = make([]byte, errmsglen)
 	jid, err := syscall.JailGet(iov[:], 0)
 	if err != nil {
-		err = asSyscallError("jail_get", err)
+		if syserr, ok := err.(sys.Errno); ok && syserr == sys.ENOENT {
+			err = NoJail
+		} else {
+			err = asSyscallError("jail_get", err)
+		}
 	} else if jid == -1 && iov[5][0] != 00 {
 		err = makeJailErr(iov[5])
 	}
