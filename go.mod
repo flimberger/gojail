@@ -1,5 +1,5 @@
 module purplekraken.com/pkg/gojail
 
-go 1.14
+go 1.17
 
-require golang.org/x/sys v0.0.0-20200523222454-059865788121
+require golang.org/x/sys v0.6.0
