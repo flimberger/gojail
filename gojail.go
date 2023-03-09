@@ -123,7 +123,7 @@ func NewIPParam(value string) (JailParam, error) {
 	}
 
 	var nameb []byte
-	var buf	[]byte
+	var buf []byte
 	if ip4 := ip.To4(); ip4 != nil {
 		nameb = byteSliceFromStringOrDie("ip4.addr")
 		buf = ip4
@@ -150,7 +150,7 @@ func (je *JailErr) Error() string {
 }
 
 // Error returned by GetId and GetName if the specified jail does not exist.
-var NoJail error = &JailErr{ errmsg: "No such jail" }
+var NoJail error = &JailErr{errmsg: "No such jail"}
 
 func makeJailErr(errmsg []byte) error {
 	return &JailErr{
