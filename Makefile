@@ -14,3 +14,8 @@ test:
 clean:
 	${GOTOOL} clean -x ./...
 .PHONY: clean
+
+check:
+	go vet ./...
+	gofmt -l .
+.PHONY:	check
